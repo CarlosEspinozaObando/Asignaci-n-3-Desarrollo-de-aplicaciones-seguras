@@ -1,0 +1,37 @@
+<!-- templates/panel-admin.html -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8"/>
+    <title>Panel Admin</title>
+  </head>
+  <body>
+    <h1>Panel de Administración</h1>
+    <p>{{ success_message }}</p>
+
+    <h2>Lista de Productos</h2>
+
+    <!-- Tabla para mostrar los productos -->
+    <table border="1">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Precio</th>
+          <th>Cantidad en Stock</th>
+          <th>Categoría</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for producto in productos %}
+        <tr>
+          <!-- Cada 'producto' es una tupla (nombre, precio, cantidad_stock, categoria) -->
+          <td>{{ producto[0] }}</td>
+          <td>{{ producto[1] }}</td>
+          <td>{{ producto[2] }}</td>
+          <td>{{ producto[3] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </body>
+</html>
