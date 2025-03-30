@@ -4,12 +4,24 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 import sqlite3
+import re
 
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static") #cargar files de static
 templates = Jinja2Templates(directory="templates") #cargar templates
 
+# Limpiar datos del form
+def sanitize_username(username: str) -> str:
+    if re.fullmatch(r"[A-Za-z0-9_]{3,20}", username):
+        return username
+    else:
+        return ""
+
+def sanitize_password(password: str) -> str:
+    allowed = re.compile(r"[^A-Za-z0-9!@#$%^&*()_+\-=\[\]{};:,.<>/?\\|`~]")
+    cleaned = allowed.sub("", password)
+    return cleaned[:25]
 
 @app.get("/login", response_class=HTMLResponse)
 def get_login_form(request: Request):
@@ -21,31 +33,46 @@ def post_login(
     usuario: str = Form(...),
     password: str = Form(...)
 ):
-    conn = sqlite3.connect("app.db")
-    cursor = conn.cursor()
+    # Llamar a las funciones de sanitización
+    usuario_clean = sanitize_username(usuario)
+    password_clean = sanitize_password(password)
 
-    consulta_vulnerable = f"""
-        SELECT id, username, password, isAdmin
-        FROM Usuarios
-        WHERE username = '{usuario}' 
-          AND password = '{password}'
-    """
-    print("DEBUG:", consulta_vulnerable) 
-
-    cursor.execute(consulta_vulnerable)
-    user = cursor.fetchone()
-    conn.close()
-
-    if not user:
-        # Falló la "verificación"
+    # Verifica que la sanitización haya sido exitosa (por ejemplo, que el username sea válido)
+    if not usuario_clean or not password_clean:
         return templates.TemplateResponse(
             "login.html",
             {
                 "request": request,
-                "error_message": "Usuario o contraseña incorrectos"
+                "error_message": "Los datos ingresados no son válidos."
+            }
+        )
+
+    # Abre conexión a la base de datos y usa parámetros seguros
+    conn = sqlite3.connect("app.db")
+    cursor = conn.cursor()
+
+    query = """
+        SELECT id, username, password, isAdmin
+        FROM Usuarios
+        WHERE username = ?
+          AND password = ?
+    """
+    cursor.execute(query, (usuario_clean, password_clean)) #placeholder
+    user = cursor.fetchone()
+
+    conn.close()
+
+    if not user:
+        # Credenciales inválidas
+        return templates.TemplateResponse(
+            "login.html",
+            {
+                "request": request,
+                "error_message": "Usuario o contraseña incorrectos."
             }
         )
     else:
+        # Login correcto, redireccionar a /panel-admin
         return RedirectResponse(url="/panel-admin", status_code=302)
 
 
